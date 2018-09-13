@@ -77,10 +77,21 @@ class Chain(object):
         
         np.random.seed()
                 
-        tune_interval = 17
+        updt_interval = 3
+        steps_until_updt = updt_interval
+        
+        tune_interval = updt_interval * 30
         steps_until_tune = tune_interval
+        acc_rate = 0
         
         for i in range(N):
+            steps_until_updt -= 1
+            if not steps_until_updt:
+                print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
+                print("Progress {: 7.2%}".format(i/N), end="")
+                steps_until_updt = updt_interval
+
+            steps_until_tune -= 1
             if not steps_until_tune:
                 acc_rate = self.accepted/(self.accepted + self.rejected)
                 print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
@@ -105,14 +116,11 @@ class Chain(object):
                 if not self.accept():
                     var[slce] = prev
             
-            if steps_until_thin < 1:
+            steps_until_thin -= 1
+            if not steps_until_thin:
                 steps_until_thin = thin
                 for variable in self.vars.values():
                     self.chain[variable.name] = np.vstack([self.chain[variable.name], variable.value])
-            else:
-                steps_until_thin -= 1
-
-            steps_until_tune -= 1
             
         for variable in self.vars.values():
             self.chain[variable.name] = self.chain[variable.name][1:]
