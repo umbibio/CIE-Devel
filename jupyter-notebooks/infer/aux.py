@@ -165,6 +165,6 @@ def mutate_data(Y, factor):
     ndiff = 0
     for key in origY.keys():
         ndiff += int(Y[key] != origY[key])
-    print("{ndiff} entries have been mutated")
+    print(f"{ndiff} entries have been mutated")
 
     return Y
