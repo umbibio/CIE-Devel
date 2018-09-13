@@ -4,4 +4,4 @@ class Variable(object):
         self.size = size
         self.prior = prior
         self.value = None
-        self.sample_size = max(1, int(size*0.01))
+        self.sample_size = max(1, int(size*0.05))
