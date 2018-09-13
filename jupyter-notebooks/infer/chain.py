@@ -90,7 +90,7 @@ class Chain(object):
                 print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
                 print("Progress {: 7.2%}".format(i/N), end="")
                 if total_sampled is not None:
-                    total_sampled[self.id] += tune_interval
+                    total_sampled[self.id] += updt_interval
                 steps_until_updt = updt_interval
 
             steps_until_tune -= 1
