@@ -152,3 +152,19 @@ class Reporter(object):
         self.ctime = time.time()
         print("\nlast: %.2f, total: %.2f -- %s" % (self.ctime - self.ltime, self.ctime - self.stime, string))
         self.ltime = self.ctime
+
+
+def mutate_data(Y, factor):
+
+    origY = Y.copy()
+    Y = origY.copy()
+
+    for key, val in Y.items():
+        Y[key] = int(round(val*np.random.uniform())) * factor
+
+    ndiff = 0
+    for key in origY.keys():
+        ndiff += int(Y[key] != origY[key])
+    print("{ndiff} entries have been mutated")
+
+    return Y
