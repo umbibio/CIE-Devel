@@ -43,8 +43,8 @@ class Chain(object):
         t = 1. - t
         u = 1. - u
 
-        p0 = u
-        p2 = t
+        p0 = u/2
+        p2 = t/2
         p1 = 1. - p0 - p2
 
         pp = np.stack([p0, p1, p2], axis=1)
@@ -111,7 +111,7 @@ class Chain(object):
 
                 slce = np.random.choice(list(range(len(var))), size=sample_size, replace=False)
                 prev = var[slce]
-                a, b = (0.001 - prev) / self.scale, (0.999 - prev) / self.scale
+                a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
                 var[slce] = st.truncnorm(a, b, prev, self.scale).rvs()
                 if not self.accept():
                     var[slce] = prev
