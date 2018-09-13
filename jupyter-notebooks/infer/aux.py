@@ -160,7 +160,7 @@ def mutate_data(Y, factor):
     Y = origY.copy()
 
     for key, val in Y.items():
-        Y[key] = int(round(val*np.random.uniform())) * factor
+        Y[key] = int(round(val*np.random.uniform() * factor)) 
 
     ndiff = 0
     for key in origY.keys():
