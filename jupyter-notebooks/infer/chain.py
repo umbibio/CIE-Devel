@@ -79,7 +79,7 @@ class Chain(object):
                 
         updt_interval = 3
         steps_until_updt = updt_interval
-        
+
         tune_interval = updt_interval * 30
         steps_until_tune = tune_interval
         acc_rate = 0
@@ -89,6 +89,8 @@ class Chain(object):
             if not steps_until_updt:
                 print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
                 print("Progress {: 7.2%}".format(i/N), end="")
+                if total_sampled is not None:
+                    total_sampled[self.id] += tune_interval
                 steps_until_updt = updt_interval
 
             steps_until_tune -= 1
@@ -102,8 +104,6 @@ class Chain(object):
                 steps_until_tune = tune_interval
                 self.accepted = 0
                 self.rejected = 0
-                if total_sampled is not None:
-                    total_sampled[self.id] += tune_interval
             
             for variable in self.vars.values():
                 var = variable.value
