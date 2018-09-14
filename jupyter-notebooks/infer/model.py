@@ -231,3 +231,13 @@ class Model(object):
         mean = trace.mean(axis=0)
         std = trace.std(axis=0)
         return pd.DataFrame({'mean': mean, 'std': std})
+
+
+    def set_subsample_size(self, factor):
+        for var in self.vars.values():
+            var.sample_size = max(1, int(var.size*factor))
+            print(f"{var.name}: new sample_size={var.sample_size}")
+        for chain in self.chains:
+            for var in chain.vars.values():
+                var.sample_size = max(1, int(var.size*factor))
+                print(f"chain{chain.id}.{var.name}: new sample_size={var.sample_size}")
