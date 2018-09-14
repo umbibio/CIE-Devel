@@ -77,7 +77,7 @@ class Chain(object):
         
         np.random.seed()
                 
-        updt_interval = 3
+        updt_interval = max(1, N*0.0001)
         steps_until_updt = updt_interval
 
         tune_interval = updt_interval * 30
