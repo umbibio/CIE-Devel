@@ -59,7 +59,7 @@ def processTrace(model, Xgt, rels):
     
     Dx, ADx, Ds, ADs, Dy = model.dictionaries
     del Dy
-    
+
     Xres = model.get_result('X')
     Xres = Xres.assign(srcuid=[ADx[i] for i in range(len(Dx))])
     Xres = Xres.set_index('srcuid')
@@ -68,30 +68,32 @@ def processTrace(model, Xgt, rels):
     Rres = model.get_result('R')
     Rres = Rres.assign(edge=[ADs[i] for i in range(len(Ds))])
     Rres = Rres.set_index('edge')
-    Rres = Rres.assign(srcuid=[src for src, trg in Rres.index])
-    Rres = Rres.assign(trguid=[trg for src, trg in Rres.index])
+    srcuid, trguid = zip(*Rres.index.tolist())
+    Rres = Rres.assign(srcuid=srcuid)
+    Rres = Rres.assign(trguid=trguid)
     Rres = Rres[Rres['srcuid'].isin(Xres.index)]
-    Rres = Rres.assign(ground_truth=[abs(rels.loc[[edge], 'val'])[0] for edge in Rres.index])
+    Rres = Rres.assign(ground_truth=rels.loc[Rres.index, 'val'].abs())
 
     Sres = model.get_result('S')
     Sres = Sres.assign(edge=[ADs[i] for i in range(len(Ds))])
     Sres = Sres.set_index('edge')
-    Sres = Sres.assign(srcuid=[src for src, trg in Sres.index])
-    Sres = Sres.assign(trguid=[trg for src, trg in Sres.index])
+    srcuid, trguid = zip(*Sres.index.tolist())
+    Sres = Sres.assign(srcuid=srcuid)
+    Sres = Sres.assign(trguid=trguid)
     Sres = Sres[Sres['srcuid'].isin(Xres.index)]
-    Sres = Sres.assign(ground_truth=[rels.loc[[edge], 'val'][0] for edge in Sres.index])
-    
+    Sres = Sres.assign(ground_truth=rels.loc[Sres.index, 'val'])
+
     Xres = Xres.sort_values(by=['mean'])
     Rres = Rres.sort_values(by=['mean'])
     Sres = Sres.sort_values(by=['mean'])
-    
+   
     return Xres, Rres, Sres
     
 
 def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
     
     lenientX, lenientR, lenientS = lenient
-    
+
     if final:
         conditions = [Xres['mean'] < 0.45, Xres['mean'] >= 0.7]
     elif lenientX:
@@ -101,7 +103,7 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
     choices = [0, 1]
     Xres = Xres.assign(pred=np.select(conditions, choices, default=-99))
     Xres = Xres.assign(correctness=Xres['ground_truth']==Xres['pred'])
-    
+
     if final:
         conditions = [Rres['mean'] < 0.40, Rres['mean'] >= 0.60]
     elif lenientR:
@@ -111,7 +113,7 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
     choices = [0, 1]
     Rres = Rres.assign(pred=np.select(conditions, choices, default=-99))
     Rres = Rres.assign(correctness=Rres['ground_truth']==Rres['pred'])
-    Rres = Rres.assign(srcactive=[Xres.loc[src]['pred'] for src in Rres['srcuid']])
+    Rres = Rres.assign(srcactive=Xres.loc[Rres.srcuid, 'pred'].tolist())
     Rres = Rres[Rres['srcactive']>0]
 
     if final:
@@ -125,15 +127,15 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
     choices = [0, 1]
     Sres = Sres.assign(pred=np.select(conditions, choices, default=-99))
     Sres = Sres.assign(correctness=Sres['ground_truth']==Sres['prediction'])
-    Sres = Sres.assign(srcactive=[Xres.loc[src]['pred'] for src in Sres['srcuid']])
+    Sres = Sres.assign(srcactive=Xres.loc[Sres.srcuid, 'pred'].tolist())
     Sres = Sres[Sres['srcactive']>0]
     Sres = Sres[Sres.index.isin(Rres.index)]
-    
+
     if len(Sres) > 0:
         # I think this might break. Be careful when rows differ in both dfs
         Sres['applicable'] = Rres['pred']
         Sres = Sres[Sres['applicable']>0]
-    
+
     if not final:
         Xres = Xres[Xres['pred']!=-99]
         Rres = Rres[Rres['pred']!=-99]
