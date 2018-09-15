@@ -158,13 +158,36 @@ class Reporter(object):
 
 def mutate_data(Y, factor):
 
+    a = (1 - factor)/2
+    b = a + 0.5
+
     origY = Y.copy()
     Y = origY.copy()
 
     for key, val in Y.items():
-        a = (1 - factor)/2
-        b = a + 0.5
         Y[key] = int(round(val*np.random.uniform(a, b))) 
+
+    ndiff = 0
+    for key in origY.keys():
+        ndiff += int(Y[key] != origY[key])
+    print(f"{ndiff} entries have been mutated")
+
+    return Y
+
+
+def mutate_data2(Y, factor):
+
+    a = (1 - factor)/2
+    b = a + 0.5
+
+    origY = Y.copy()
+    Y = origY.copy()
+
+    for key, val in Y.items():
+        if val == 0 and np.random.uniform() < factor:
+            Y[key] = int(round(np.random.choice([-1,1])))
+        else:
+            Y[key] = int(round(val*np.random.uniform(a, b)))
 
     ndiff = 0
     for key in origY.keys():
