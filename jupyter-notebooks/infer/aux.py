@@ -55,7 +55,7 @@ def genData(NX=3, num_active_tfs=2, NY=50):
 
     return Xgt, Y, rels
 
-def processTrace(model, Xgt, rels):
+def processTrace(model, Xgt=None, rels=None):
     
     Dx, ADx, Ds, ADs, Dy = model.dictionaries
     del Dy
@@ -63,7 +63,8 @@ def processTrace(model, Xgt, rels):
     Xres = model.get_result('X')
     Xres = Xres.assign(srcuid=[ADx[i] for i in range(len(Dx))])
     Xres = Xres.set_index('srcuid')
-    Xres = Xres.assign(ground_truth=[Xgt[src] for src in Xres.index])
+    if Xgt is not None:
+        Xres = Xres.assign(ground_truth=[Xgt[src] for src in Xres.index])
 
     Rres = model.get_result('R')
     Rres = Rres.assign(edge=[ADs[i] for i in range(len(Ds))])
@@ -72,7 +73,8 @@ def processTrace(model, Xgt, rels):
     Rres = Rres.assign(srcuid=srcuid)
     Rres = Rres.assign(trguid=trguid)
     Rres = Rres[Rres['srcuid'].isin(Xres.index)]
-    Rres = Rres.assign(ground_truth=rels.loc[Rres.index, 'val'].abs())
+    if rels is not None:
+        Rres = Rres.assign(ground_truth=rels.loc[Rres.index, 'val'].abs())
 
     Sres = model.get_result('S')
     Sres = Sres.assign(edge=[ADs[i] for i in range(len(Ds))])
@@ -81,7 +83,8 @@ def processTrace(model, Xgt, rels):
     Sres = Sres.assign(srcuid=srcuid)
     Sres = Sres.assign(trguid=trguid)
     Sres = Sres[Sres['srcuid'].isin(Xres.index)]
-    Sres = Sres.assign(ground_truth=rels.loc[Sres.index, 'val'])
+    if rels is not None:
+        Sres = Sres.assign(ground_truth=rels.loc[Sres.index, 'val'])
 
     Xres = Xres.sort_values(by=['mean'])
     Rres = Rres.sort_values(by=['mean'])
@@ -102,7 +105,10 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
         conditions = [Xres['mean'] < 0.2, Xres['mean'] >= 0.8]
     choices = [0, 1]
     Xres = Xres.assign(pred=np.select(conditions, choices, default=-99))
-    Xres = Xres.assign(correctness=Xres['ground_truth']==Xres['pred'])
+    try:
+        Xres = Xres.assign(correctness=Xres['ground_truth']==Xres['pred'])
+    except KeyError:
+        pass
 
     if final:
         conditions = [Rres['mean'] < 0.40, Rres['mean'] >= 0.60]
@@ -112,7 +118,10 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
         conditions = [Rres['mean'] < 0.30, Rres['mean'] >= 0.70]
     choices = [0, 1]
     Rres = Rres.assign(pred=np.select(conditions, choices, default=-99))
-    Rres = Rres.assign(correctness=Rres['ground_truth']==Rres['pred'])
+    try:
+        Rres = Rres.assign(correctness=Rres['ground_truth']==Rres['pred'])
+    except KeyError:
+        pass
     Rres = Rres.assign(srcactive=Xres.loc[Rres.srcuid, 'pred'].tolist())
     Rres = Rres[Rres['srcactive']>0]
 
@@ -126,7 +135,10 @@ def updateRes(Xres, Rres, Sres, lenient=[False, False, False], final=False):
     Sres = Sres.assign(prediction=np.select(conditions, choices, default=0))
     choices = [0, 1]
     Sres = Sres.assign(pred=np.select(conditions, choices, default=-99))
-    Sres = Sres.assign(correctness=Sres['ground_truth']==Sres['prediction'])
+    try:
+        Sres = Sres.assign(correctness=Sres['ground_truth']==Sres['prediction'])
+    except KeyError:
+        pass
     Sres = Sres.assign(srcactive=Xres.loc[Sres.srcuid, 'pred'].tolist())
     Sres = Sres[Sres['srcactive']>0]
     Sres = Sres[Sres.index.isin(Rres.index)]
