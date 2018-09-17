@@ -69,6 +69,7 @@ class Model(object):
 
         for varname, size in zip(self.varnames, sizes):
             self.vars[varname] = Variable(varname, size=size)
+            self.vars[varname].value = np.ones(shape=size)/2
 
     def set_priors(self, Xprior, Rprior, Sprior):
         
@@ -77,7 +78,6 @@ class Model(object):
         
         for varname, prior in zip(varnames, priors):
             self.vars[varname].prior = prior
-            self.vars[varname].value = prior.rvs()
             
         
     def init_chains(self, chains=2):
