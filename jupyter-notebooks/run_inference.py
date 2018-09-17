@@ -1,20 +1,22 @@
 import numpy as np
 import scipy.stats as st
-import matplotlib.pyplot as plt
-from infer.aux import genData, processTrace, updateRes, Reporter, mutate_data
+from infer.aux import genData, Reporter, mutate_data
 from infer.model import Model
+import pickle
 
-Xgt, Y, rels = genData(60, 10, 50)
+Xgt, Y, rels = genData(60, 10, 20000)
 
 # this is for adding noise to input data
-#Y = mutate_data(Y, 1)
+Y = mutate_data(Y, 0.05)
 
-njobs = 1
-chains = 1
+njobs = 2
+chains = 2
 
 model = Model()
 model.scale = [0.5]
 model.build(Y, rels)
+
+model.set_subsample_size(0.0001)
 
 alph, beta = 0.4, 0.7
 x_alph = np.ones(shape=model.nx)*alph
@@ -36,25 +38,8 @@ model.init_chains(chains=chains)
 
 reporter = Reporter()
 reporter.report("Start")
-model.sample(N=2000, burn=0.0, thin=1, njobs=njobs)
-reporter.report("Completed current sample")
 while not model.converged():
-    model.sample(N=2000, burn=0.0, thin=1, njobs=njobs)
+    model.sample(N=2000, burn=0.1, thin=100, njobs=njobs)
     reporter.report("Completed current sample")
 
-model.trace[0]['X'].shape
-
-y = model.get_trace('X', chain=0)
-for i in range(y.shape[1]):
-    plt.plot(range(y.shape[0]), y[:, i], alpha=0.4)
-plt.ylim(0,1)
-plt.show()
-
-Xres, Rres, Sres = processTrace(model, Xgt, rels)
-Xres, Rres, Sres = updateRes(Xres, Rres, Sres, final=True)
-
-Xres
-
-Rres
-
-Sres
+pickle.dump( model, open( "model.p", "wb" ) )

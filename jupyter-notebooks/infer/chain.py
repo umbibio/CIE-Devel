@@ -27,7 +27,7 @@ class Chain(object):
         self.logpp = - np.inf
         self.accepted = 0
         self.rejected = 0
-        
+
     def accept(self):
 
         t = np.ones(shape=self.ny, dtype=np.float64)
@@ -87,17 +87,16 @@ class Chain(object):
         for i in range(N):
             steps_until_updt -= 1
             if not steps_until_updt:
-                print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
-                print("Progress {: 7.2%}".format(i/N), end="")
                 if total_sampled is not None:
                     total_sampled[self.id] += updt_interval
+                else:
+                    print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
+                    print("Progress {: 7.2%}".format(i/N), end="")
                 steps_until_updt = updt_interval
 
             steps_until_tune -= 1
             if not steps_until_tune:
                 acc_rate = self.accepted/(self.accepted + self.rejected)
-                print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
-                print("Progress {: 7.2%}".format(i/N), end="")
 
                 #tune()
 

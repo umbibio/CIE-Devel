@@ -213,6 +213,10 @@ class Model(object):
 
 
     def converged(self):
+
+        if len(self.gelman_rubin) == 0:
+            return False
+
         max_gr = 0
         for gr in self.gelman_rubin.values():
             max_gr = max(max_gr, gr.max())
