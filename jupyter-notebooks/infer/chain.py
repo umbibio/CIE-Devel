@@ -25,8 +25,7 @@ class Chain(object):
         self.chain = {}
         
         self.logpp = - np.inf
-        self.accepted = 0
-        self.rejected = 0
+
 
     def accept(self):
 
@@ -62,12 +61,9 @@ class Chain(object):
         if accept:
             self.logpp = logposterior
 
-            self.accepted += 1
-        else:
-            self.rejected += 1
-
         return accept
-    
+
+
     def sample(self, N, total_sampled=None, thin=1):
 
         steps_until_thin = thin
@@ -83,6 +79,8 @@ class Chain(object):
         tune_interval = updt_interval * 30
         steps_until_tune = tune_interval
         acc_rate = 0
+        accepted = rejected = 0
+        total_accepted = total_rejected = 0
         
         for i in range(N):
             steps_until_updt -= 1
@@ -96,24 +94,29 @@ class Chain(object):
 
             steps_until_tune -= 1
             if not steps_until_tune:
-                acc_rate = self.accepted/(self.accepted + self.rejected)
+                acc_rate = accepted/(accepted + rejected)
 
                 #tune()
 
                 steps_until_tune = tune_interval
-                self.accepted = 0
-                self.rejected = 0
+                accepted = rejected = 0
             
             for variable in self.vars.values():
                 var = variable.value
+                var_size = variable.size
                 sample_size = variable.sample_size
 
-                slce = np.random.choice(list(range(len(var))), size=sample_size, replace=False)
+                slce = np.random.choice(var_size, size=sample_size, replace=False)
                 prev = var[slce]
                 a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
-                var[slce] = st.truncnorm(a, b, prev, self.scale).rvs()
+                var[slce] = st.truncnorm(a, b, prev, self.scale).rvs()                
                 if not self.accept():
                     var[slce] = prev
+                    rejected += 1
+                    total_rejected += 1
+                else:
+                    accepted += 1
+                    total_accepted += 1
             
             steps_until_thin -= 1
             if not steps_until_thin:
@@ -124,6 +127,7 @@ class Chain(object):
         for variable in self.vars.values():
             self.chain[variable.name] = self.chain[variable.name][1:]
 
+        acc_rate = total_accepted/(total_accepted + total_rejected)
         print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
         print("Sampling completed")
         if total_sampled is not None:
