@@ -61,12 +61,14 @@ def processTrace(model, Xgt=None, rels=None):
     del Dy
 
     Xres = model.get_result('X')
+    Xres = Xres.assign(gelman_rubin=model.gelman_rubin['X'])
     Xres = Xres.assign(srcuid=[ADx[i] for i in range(len(Dx))])
     Xres = Xres.set_index('srcuid')
     if Xgt is not None:
         Xres = Xres.assign(ground_truth=[Xgt[src] for src in Xres.index])
 
     Rres = model.get_result('R')
+    Rres = Rres.assign(gelman_rubin=model.gelman_rubin['R'])
     Rres = Rres.assign(edge=[ADs[i] for i in range(len(Ds))])
     Rres = Rres.set_index('edge')
     srcuid, trguid = zip(*Rres.index.tolist())
@@ -77,6 +79,7 @@ def processTrace(model, Xgt=None, rels=None):
         Rres = Rres.assign(ground_truth=rels.loc[Rres.index, 'val'].abs())
 
     Sres = model.get_result('S')
+    Sres = Sres.assign(gelman_rubin=model.gelman_rubin['S'])
     Sres = Sres.assign(edge=[ADs[i] for i in range(len(Ds))])
     Sres = Sres.set_index('edge')
     srcuid, trguid = zip(*Sres.index.tolist())
