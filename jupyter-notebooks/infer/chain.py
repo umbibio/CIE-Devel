@@ -52,8 +52,8 @@ class Chain(object):
         loglikelihood = st.multinomial(1, pp).logpmf(self.YY).sum()
 
         logposterior = loglikelihood
-        for variable in self.vars.values():
-            logposterior += self.vars[variable.name].prior.logpdf(self.vars[variable.name].value).sum()
+        for var in self.vars.values():
+            logposterior += var.lgpdf.sum()
 
         logratio = logposterior - self.logpp
 

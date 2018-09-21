@@ -18,8 +18,8 @@ class Variable(object):
     
 
     def mutate(self):
-        self.prev_value = self.value
-        self.prev_lgpdf = self.lgpdf
+        self.prev_value = self.value.copy()
+        self.prev_lgpdf = self.lgpdf.copy()
 
         slce = np.random.choice(self.size, size=self.sample_size, replace=False)
         prev = self.value[slce]
