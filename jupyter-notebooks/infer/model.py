@@ -52,13 +52,24 @@ class Model(object):
         ns = len(Ds)
         self.ns = ns
         
-        self.edgeMap = {}
+
+        self.map = {}
+        self.map['X'] = {}
+        for i in Dx.values():
+            self.map['X'][i] = []
+        for (src, trg), k in Ds.items():
+            self.map['X'][Dx[src]].append((k, Dy[trg]))
+
+        self.map['Y'] = {}
         for j in Dy.values():
-            self.edgeMap[j] = []
+            self.map['Y'][j] = []
+        for (src, trg), k in Ds.items():
+            self.map['Y'][Dy[trg]].append((Dx[src], k))
 
-        for src, trg in rels.index:
-            self.edgeMap[Dy[trg]].append((Dx[src], Ds[(src, trg)]))
-
+        self.map['S'] = {}
+        for (src, trg), k in Ds.items():
+            self.map['S'][k] = [(Dx[src], Dy[trg])]
+        
         self.dictionaries = Dx, ADx, Ds, ADs, Dy
 
         self.YY = []
@@ -70,10 +81,10 @@ class Model(object):
         self.YY = np.array(self.YY)
 
         self.varnames = ['X', 'R', 'S']
-        
+
         for varname, prior in zip(self.varnames, priors):
             self.vars[varname] = Variable(varname, prior)
-            
+
         
     def init_chains(self, chains=2):
         for i in range(chains):
