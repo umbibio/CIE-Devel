@@ -52,9 +52,12 @@ class Model(object):
         ns = len(Ds)
         self.ns = ns
         
-        self.edgeMap = []
-        for k, (src, trg) in enumerate(rels.index):
-            self.edgeMap.append([Dx[src], Ds[(src, trg)], Dy[trg]])
+        self.edgeMap = {}
+        for j in Dy.values():
+            self.edgeMap[j] = []
+
+        for src, trg in rels.index:
+            self.edgeMap[Dy[trg]].append((Dx[src], Ds[(src, trg)]))
 
         self.dictionaries = Dx, ADx, Ds, ADs, Dy
 

@@ -35,7 +35,8 @@ class Chain(object):
         RS = self.vars['S'].value * self.vars['R'].value
         RnS = (1. - self.vars['S'].value) * self.vars['R'].value
             
-        for i, k, j in self.edgeMap:
+        for j, edges in self.edgeMap.items():
+            for i, k in edges:
             t[j] *= 1. - self.vars['X'].value[i] * RS[k]
             u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
 
