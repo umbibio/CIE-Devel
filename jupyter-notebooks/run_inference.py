@@ -1,45 +1,51 @@
+import pickle
 import numpy as np
 import scipy.stats as st
-from infer.aux import genData, Reporter, mutate_data
+import matplotlib.pyplot as plt
+from infer.aux import genData, processTrace, updateRes, Reporter, mutate_data, mutate_data2
 from infer.model import Model
-import pickle
 
-Xgt, Y, rels = genData(60, 10, 20000)
+Xgt, Y, rels = genData(2, 1, 50)
+
+min(list(Y.values())), np.mean(list(Y.values())), max(list(Y.values()))
 
 # this is for adding noise to input data
-Y = mutate_data(Y, 0.05)
+#Y = mutate_data2(Y, 0.05)
 
-njobs = 2
-chains = 2
+min(list(Y.values())), np.mean(list(Y.values())), max(list(Y.values()))
 
-model = Model()
-model.scale = [0.5]
-model.build(Y, rels)
+alph, beta = 0.5, 1
+x_alph = np.ones(shape=len(Xgt))*alph
+x_beta = np.ones(shape=len(Xgt))*beta
 
-model.set_subsample_size(0.0001)
+r_alph = np.ones(shape=len(rels))*alph
+r_beta = np.ones(shape=len(rels))*beta
 
-alph, beta = 0.4, 0.7
-x_alph = np.ones(shape=model.nx)*alph
-x_beta = np.ones(shape=model.nx)*beta
-
-r_alph = np.ones(shape=model.ns)*alph
-r_beta = np.ones(shape=model.ns)*beta
-
-alph, beta = 0.5, 0.5
-s_alph = np.ones(shape=model.ns)*alph
-s_beta = np.ones(shape=model.ns)*beta
+alph = beta = 0.5
+s_alph = np.ones(shape=len(rels))*alph
+s_beta = np.ones(shape=len(rels))*beta
 
 Xprior = st.beta(x_alph, x_beta)
 Rprior = st.beta(r_alph, r_beta)
 Sprior = st.beta(s_alph, s_beta)
 
-model.set_priors(Xprior, Rprior, Sprior)
+njobs = 1
+chains = 2
+
+model = Model()
+model.scale = [0.5]
+model.build(Y, rels, [Xprior, Rprior, Sprior])
+
+model.set_subsample_size(0.1)
+
+Rprior.args[0].shape[0]
+
 model.init_chains(chains=chains)
 
 reporter = Reporter()
 reporter.report("Start")
 while not model.converged():
-    model.sample(N=2000, burn=0.1, thin=100, njobs=njobs)
+    model.sample(N=2000, burn=0.5, thin=10, njobs=njobs)
     reporter.report("Completed current sample")
 
 pickle.dump( model, open( "model.p", "wb" ) )
