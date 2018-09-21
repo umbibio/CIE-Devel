@@ -106,8 +106,7 @@ class Chain(object):
                 var.mutate()
 
                 if not self.accept():
-                    var.value = var.prev_value
-                    var.lgpdf = var.prev_lgpdf
+                    var.revert()
                     rejected += 1
                     total_rejected += 1
                 else:
