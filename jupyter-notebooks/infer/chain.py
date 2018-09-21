@@ -102,17 +102,16 @@ class Chain(object):
                 steps_until_tune = tune_interval
                 accepted = rejected = 0
             
-            for variable in self.vars.values():
-                var = variable.value
-                var_size = variable.size
-                sample_size = variable.sample_size
+            for var in self.vars.values():
+                var.mutate()
 
                 slce = np.random.choice(var_size, size=sample_size, replace=False)
                 prev = var[slce]
                 a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
                 var[slce] = st.truncnorm(a, b, prev, self.scale).rvs()                
                 if not self.accept():
-                    var[slce] = prev
+                    var.value = var.prev_value
+                    var.lgpdf = var.prev_lgpdf
                     rejected += 1
                     total_rejected += 1
                 else:
@@ -122,8 +121,8 @@ class Chain(object):
             steps_until_thin -= 1
             if not steps_until_thin:
                 steps_until_thin = thin
-                for variable in self.vars.values():
-                    self.chain[variable.name] = np.vstack([self.chain[variable.name], variable.value])
+                for var in self.vars.values():
+                    self.chain[var.name] = np.vstack([self.chain[var.name], var.value])
             
         for variable in self.vars.values():
             self.chain[variable.name] = self.chain[variable.name][1:]

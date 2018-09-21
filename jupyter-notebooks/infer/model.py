@@ -24,7 +24,7 @@ class Model(object):
         self.vars = {}
         self.varnames = None
     
-    def build(self, Y, rels):
+    def build(self, Y, rels, priors):
         # create several dictionaries for mapping uids to a range starting from zero
         # this is for better performance by making a single function call
         # to create the distributions in pymc3
@@ -67,20 +67,12 @@ class Model(object):
             tmp[1 + Y[trg]] = 1
             self.YY.append(tmp)
 
+        self.YY = np.array(self.YY)
+
         self.varnames = ['X', 'R', 'S']
-        sizes = [nx, ns, ns]
-
-        for varname, size in zip(self.varnames, sizes):
-            self.vars[varname] = Variable(varname, size=size)
-            self.vars[varname].value = np.ones(shape=size)/2
-
-    def set_priors(self, Xprior, Rprior, Sprior):
         
-        varnames = ['X', 'R', 'S']
-        priors = [Xprior, Rprior, Sprior]
-        
-        for varname, prior in zip(varnames, priors):
-            self.vars[varname].prior = prior
+        for varname, prior in zip(self.varnames, priors):
+            self.vars[varname] = Variable(varname, prior)
             
         
     def init_chains(self, chains=2):
