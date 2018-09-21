@@ -105,10 +105,6 @@ class Chain(object):
             for var in self.vars.values():
                 var.mutate()
 
-                slce = np.random.choice(var_size, size=sample_size, replace=False)
-                prev = var[slce]
-                a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
-                var[slce] = st.truncnorm(a, b, prev, self.scale).rvs()                
                 if not self.accept():
                     var.value = var.prev_value
                     var.lgpdf = var.prev_lgpdf
