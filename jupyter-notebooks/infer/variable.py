@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 
 class Variable(object):
-    def __init__(self, name, prior):
+    def __init__(self, name, prior, scale):
         self.name = name
         self.prior = prior
         self.size = prior.args[0].shape[0]
@@ -13,7 +13,7 @@ class Variable(object):
         self.prev_value = None
         self.prev_lgpdf = None
 
-        self.scale = None
+        self.scale = scale
         self.sample_size = max(1, int(self.size*0.05))
     
 

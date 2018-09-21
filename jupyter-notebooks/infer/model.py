@@ -83,7 +83,7 @@ class Model(object):
         self.varnames = ['X', 'R', 'S']
 
         for varname, prior in zip(self.varnames, priors):
-            self.vars[varname] = Variable(varname, prior)
+            self.vars[varname] = Variable(varname, prior, self.scale[0])
 
         
     def init_chains(self, chains=2):
