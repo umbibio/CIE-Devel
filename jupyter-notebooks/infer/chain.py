@@ -37,8 +37,8 @@ class Chain(object):
             
         for j, edges in self.map['Y'].items():
             for i, k in edges:
-            t[j] *= 1. - self.vars['X'].value[i] * RS[k]
-            u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
+                t[j] *= 1. - self.vars['X'].value[i] * RS[k]
+                u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
 
         t = 1. - t
         u = 1. - u
