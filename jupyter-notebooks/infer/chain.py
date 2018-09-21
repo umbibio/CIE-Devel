@@ -24,7 +24,7 @@ class Chain(object):
         
         self.chain = {}
         
-        self.logpp = - np.inf
+        self.prev_loglikelihood = - np.inf
 
 
     def accept(self):
@@ -51,16 +51,15 @@ class Chain(object):
 
         loglikelihood = st.multinomial(1, pp).logpmf(self.YY).sum()
 
-        logposterior = loglikelihood
+        logratio = loglikelihood - self.prev_loglikelihood
+        
         for var in self.vars.values():
-            logposterior += var.lgpdf.sum()
-
-        logratio = logposterior - self.logpp
+            logratio += var.lgpdf.sum() - var.prev_lgpdf.sum()
 
         accept = logratio >= 0 or logratio > -np.random.exponential()
 
         if accept:
-            self.logpp = logposterior
+            self.prev_loglikelihood = loglikelihood
 
         return accept
 
@@ -103,7 +102,7 @@ class Chain(object):
                 accepted = rejected = 0
             
             for var in self.vars.values():
-                var.mutate()
+                slce = var.mutate()
 
                 if not self.accept():
                     var.revert()

@@ -2,7 +2,7 @@ import numpy as np
 import scipy.stats as st
 
 class Variable(object):
-    
+
     def __init__(self, name, prior, scale):
         self.name = name
         self.prior = prior
@@ -12,7 +12,7 @@ class Variable(object):
         self.lgpdf = self.prior.logpdf(self.value)
 
         self.prev_value = None
-        self.prev_lgpdf = None
+        self.prev_lgpdf = np.zeros(shape=self.size) - np.inf
 
         self.scale = scale
         self.sample_size = max(1, int(self.size*0.05))
@@ -27,6 +27,8 @@ class Variable(object):
         a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
         self.value[slce] = st.truncnorm(a, b, prev, self.scale).rvs()
         self.lgpdf = self.prior.logpdf(self.value)
+
+        return slce
 
 
     def revert(self):
