@@ -58,7 +58,7 @@ class Model(object):
         for i in Dx.values():
             self.map['X'][i] = []
         for (src, trg), k in Ds.items():
-            self.map['X'][Dx[src]].append((k, Dy[trg]))
+            self.map['X'][Dx[src]].append(Dy[trg])
 
         self.map['Y'] = {}
         for j in Dy.values():
@@ -68,7 +68,8 @@ class Model(object):
 
         self.map['S'] = {}
         for (src, trg), k in Ds.items():
-            self.map['S'][k] = [(Dx[src], Dy[trg])]
+            self.map['S'][k] = [Dy[trg]]
+        self.map['R'] = self.map['S']
         
         self.dictionaries = Dx, ADx, Ds, ADs, Dy
 

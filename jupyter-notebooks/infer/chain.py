@@ -24,10 +24,16 @@ class Chain(object):
         
         self.chain = {}
         
-        self.prev_loglikelihood = - np.inf
+        self.prev_loglikelihood = np.zeros(shape=self.ny) - np.inf
 
 
-    def accept(self):
+    def accept(self, var, slce):
+
+        affected = set()
+        for i in slce:
+            affected.update(self.map[var.name][i])
+
+        mask =  np.array(list(affected))
 
         t = np.ones(shape=self.ny, dtype=np.float64)
         u = np.ones(shape=self.ny, dtype=np.float64)
@@ -35,26 +41,25 @@ class Chain(object):
         RS = self.vars['S'].value * self.vars['R'].value
         RnS = (1. - self.vars['S'].value) * self.vars['R'].value
             
-        for j, edges in self.map['Y'].items():
-            for i, k in edges:
+        for j in mask:
+            for i, k in self.map['Y'][j]:
                 t[j] *= 1. - self.vars['X'].value[i] * RS[k]
                 u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
 
         t = 1. - t
         u = 1. - u
 
-        p0 = u/2
-        p2 = t/2
+        p0 = u[mask]/2
+        p2 = t[mask]/2
         p1 = 1. - p0 - p2
 
         pp = np.stack([p0, p1, p2], axis=1)
 
-        loglikelihood = st.multinomial(1, pp).logpmf(self.YY).sum()
-
-        logratio = loglikelihood - self.prev_loglikelihood
+        loglikelihood = self.prev_loglikelihood.copy()
+        loglikelihood[mask] = st.multinomial(1, pp).logpmf(self.YY[mask])
         
-        for var in self.vars.values():
-            logratio += var.lgpdf.sum() - var.prev_lgpdf.sum()
+        logratio = loglikelihood[mask].sum() - self.prev_loglikelihood[mask].sum()
+        logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
 
         accept = logratio >= 0 or logratio > -np.random.exponential()
 
@@ -104,7 +109,7 @@ class Chain(object):
             for var in self.vars.values():
                 slce = var.mutate()
 
-                if not self.accept():
+                if not self.accept(var, slce):
                     var.revert()
                     rejected += 1
                     total_rejected += 1
