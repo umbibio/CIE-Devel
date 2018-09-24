@@ -49,8 +49,8 @@ class Chain(object):
         t = 1. - t
         u = 1. - u
 
-        p0 = u[mask]/2
-        p2 = t[mask]/2
+        p0 = u[mask]
+        p2 = t[mask]*(1. - p0)
         p1 = 1. - p0 - p2
 
         pp = np.stack([p0, p1, p2], axis=1)
