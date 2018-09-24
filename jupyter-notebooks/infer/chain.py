@@ -27,11 +27,16 @@ class Chain(object):
         self.prev_loglikelihood = np.zeros(shape=self.ny) - np.inf
 
 
-    def accept(self, var, slce):
+    def accept(self, var):
+        
+        slce = var.slce
 
         affected = set()
+        affected_by = {}
         for i in slce:
             affected.update(self.map[var.name][i])
+            affected_by[i] = np.array(self.map[var.name][i])
+            
 
         mask =  np.array(list(affected))
 
@@ -57,14 +62,46 @@ class Chain(object):
 
         loglikelihood = self.prev_loglikelihood.copy()
         loglikelihood[mask] = st.multinomial(1, pp).logpmf(self.YY[mask])
+
+        logratio_var = var.lgpdf - var.prev_lgpdf
+        logratio_lik = loglikelihood - self.prev_loglikelihood
+
+        logratio = logratio_var
+        for i in slce:
+            # TODO: find better way to fill this values
+            logratio[i] += logratio_lik[affected_by[i]].sum()
+
+        slce_mask = np.zeros(var.size, dtype=bool)
+        slce_mask[slce] = 1
+
+        threshold = np.random.exponential(size=var.size)
+
+        accept = (logratio >= 0) + (logratio > threshold)
+        reject_mask = (~accept)*slce_mask
+        var.value[reject_mask] = var.prev_value[reject_mask]
+        var.lgpdf[reject_mask] = var.prev_lgpdf[reject_mask]
+        var.n_rejected[reject_mask] += 1
         
-        logratio = loglikelihood[mask].sum() - self.prev_loglikelihood[mask].sum()
-        logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
+        slce_mask = accept * slce_mask
+        slce = np.argwhere(slce_mask).T[0]
+        var.slce = slce
+
+        affected = set()
+        for i in slce:
+            affected.update(self.map[var.name][i])
+
+        mask =  np.array(list(affected))
+        
+        try:
+            logratio = loglikelihood[mask].sum() - self.prev_loglikelihood[mask].sum()
+            logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
+        except IndexError:
+            logratio = - np.inf
 
         accept = logratio >= 0 or logratio > -np.random.exponential()
 
         if accept:
-            self.prev_loglikelihood = loglikelihood
+            self.prev_loglikelihood[mask] = loglikelihood[mask]
 
         return accept
 
@@ -101,15 +138,16 @@ class Chain(object):
             if not steps_until_tune:
                 acc_rate = accepted/(accepted + rejected)
 
-                #tune()
+                #for var in self.vars.values():
+                #    var.tune()
 
                 steps_until_tune = tune_interval
                 accepted = rejected = 0
             
             for var in self.vars.values():
-                slce = var.mutate()
+                var.mutate()
 
-                if not self.accept(var, slce):
+                if not self.accept(var):
                     var.revert()
                     rejected += 1
                     total_rejected += 1
@@ -133,4 +171,26 @@ class Chain(object):
             total_sampled[self.id] = N
         
         return self
-        
+
+    def tune(self, acc_rate):
+        # Switch statement
+        if acc_rate < 0.001:
+            # reduce by 90 percent
+            self.scale *= 0.1
+        elif acc_rate < 0.05:
+            # reduce by 50 percent
+            self.scale *= 0.5
+        elif acc_rate < 0.2:
+            # reduce by ten percent
+            self.scale *= 0.9
+        elif acc_rate > 0.95:
+            # increase by factor of ten
+            self.scale *= 10.0
+        elif acc_rate > 0.75:
+            # increase by double
+            self.scale *= 2.0
+        elif acc_rate > 0.5:
+            # increase by ten percent
+            self.scale *= 1.1
+
+        self.scale = min(self.scale, 0.5)
