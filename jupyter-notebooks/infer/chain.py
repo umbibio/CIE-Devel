@@ -31,14 +31,16 @@ class Chain(object):
         
         slce = var.slce
 
-        affected = set()
-        affected_by = {}
+        Ys_affected = set()
+        Ys_affected_by = {}
+        Ss_affected_by = {}
         for i in slce:
-            affected.update(self.map[var.name][i])
-            affected_by[i] = np.array(self.map[var.name][i])
+            Ys_affected.update(self.map[var.name][i])
+            Ys_affected_by[i] = np.array(self.map[var.name][i])
+            Ss_affected_by[i] = np.array([])
             
 
-        mask =  np.array(list(affected))
+        mask =  np.array(list(Ys_affected))
 
         t = np.ones(shape=self.ny, dtype=np.float64)
         u = np.ones(shape=self.ny, dtype=np.float64)
@@ -66,7 +68,7 @@ class Chain(object):
         logratio = logratio_var
         for i in slce:
             # TODO: find better way to fill this values
-            logratio[i] += logratio_lik[affected_by[i]].sum()
+            logratio[i] += logratio_lik[Ys_affected_by[i]].sum()
 
         slce_mask = np.zeros(var.size, dtype=bool)
         slce_mask[slce] = 1
@@ -83,11 +85,11 @@ class Chain(object):
         slce = np.argwhere(slce_mask).T[0]
         var.slce = slce
 
-        affected = set()
+        Ys_affected = set()
         for i in slce:
-            affected.update(self.map[var.name][i])
+            Ys_affected.update(self.map[var.name][i])
 
-        mask =  np.array(list(affected))
+        mask =  np.array(list(Ys_affected))
         
         try:
             logratio = loglikelihood[mask].sum() - self.prev_loglikelihood[mask].sum()
