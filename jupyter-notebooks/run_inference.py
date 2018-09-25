@@ -7,12 +7,8 @@ from infer.model import Model
 
 Xgt, Y, rels = genData(2, 1, 50)
 
-min(list(Y.values())), np.mean(list(Y.values())), max(list(Y.values()))
-
 # this is for adding noise to input data
 #Y = mutate_data2(Y, 0.05)
-
-min(list(Y.values())), np.mean(list(Y.values())), max(list(Y.values()))
 
 alph, beta = 0.5, 1
 x_alph = np.ones(shape=len(Xgt))*alph
@@ -37,8 +33,6 @@ model.scale = [0.5]
 model.build(Y, rels, [Xprior, Rprior, Sprior])
 
 model.set_subsample_size(0.1)
-
-Rprior.args[0].shape[0]
 
 model.init_chains(chains=chains)
 
