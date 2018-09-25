@@ -46,12 +46,9 @@ class Chain(object):
                 t[j] *= 1. - self.vars['X'].value[i] * RS[k]
                 u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
 
-        t = 1. - t
-        u = 1. - u
-
-        p0 = u[mask]
-        p2 = t[mask]*(1. - p0)
-        p1 = 1. - p0 - p2
+        p0 = 1. - u[mask]
+        p1 = t[mask]*u[mask]
+        p2 = u[mask] - p1
 
         pp = np.stack([p0, p1, p2], axis=1)
 
