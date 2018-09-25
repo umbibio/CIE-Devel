@@ -9,15 +9,16 @@ class Variable(object):
         self.args = np.array(list(prior.args))
         self.size = self.args.shape[1]
 
-        self.value = np.ones(shape=self.size)/2
+        self.value = np.ones(self.size)/2
         try:
             self.lgpdf = self.prior.logpdf(self.value)
         except AttributeError:
+            # in case we try to use a discrete RV with PMF and no PDF
             self.lgpdf = self.prior.logpmf(self.value)
             self.prior.logpdf =self.prior.logpmf
 
         self.prev_value = None
-        self.prev_lgpdf = np.zeros(shape=self.size) - np.inf
+        self.prev_lgpdf = np.zeros(self.size) - np.inf
 
         self.sample_size = max(1, int(self.size*0.05))
         self.scale = np.ones(self.size) * scale
