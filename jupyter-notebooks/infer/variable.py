@@ -21,7 +21,7 @@ class Variable(object):
         self.prev_lgpdf = np.zeros(self.size) - np.inf
 
         self.sample_size = max(1, int(self.size*0.05))
-        self.scale = np.ones(self.size) * scale
+        self.scale = scale
         
         self.slce = None
         self.n_proposed = np.zeros(self.size)
@@ -34,9 +34,9 @@ class Variable(object):
 
         slce = np.random.choice(self.size, size=self.sample_size, replace=False)
         prev = self.value[slce]
-        scal = self.scale[slce]
-        a, b = (0.01 - prev) / scal, (0.99 - prev) / scal
-        self.value[slce] = st.truncnorm(a, b, prev, scal).rvs()
+
+        a, b = (0.01 - prev) / self.scale, (0.99 - prev) / self.scale
+        self.value[slce] = st.truncnorm(a, b, prev, self.scale).rvs()
         #self.value[slce] = self.prior.dist(*list(self.args[:, slce])).rvs()
         self.lgpdf = self.prior.logpdf(self.value)
         
