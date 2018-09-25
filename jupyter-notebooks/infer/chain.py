@@ -33,37 +33,48 @@ class Chain(object):
 
         Ys_affected = set()
         Ys_affected_by = {}
-        Ss_affected_by = {}
         for i in slce:
-            Ys_affected.update(self.map[var.name][i])
-            Ys_affected_by[i] = np.array(self.map[var.name][i])
-            Ss_affected_by[i] = np.array([])
-            
+            Ys_affected.update(self.map[var.name][i]['Y'])
+            Ys_affected_by[i] = np.array(self.map[var.name][i]['Y'])
 
-        mask =  np.array(list(Ys_affected))
+        Y_mask =  np.array(list(Ys_affected))
+
+#        s_slce = []
+#        for j in Y_mask:
+#            s_slce += self.map['Y'][j]['S']
+#        s_slce = np.array(s_slce)
+#
+#        RS = np.empty(shape=self.ns, dtype=np.float64)
+#        RnS = np.empty(shape=self.ns, dtype=np.float64)
+#
+#        RS[s_slce] = self.vars['S'].value[s_slce] * self.vars['R'].value[s_slce]
+#        RnS[s_slce] = self.vars['R'].value[s_slce] - RS[s_slce] 
+
+        RS = self.vars['S'].value * self.vars['R'].value
+        RnS = self.vars['R'].value - RS 
 
         t = np.ones(shape=self.ny, dtype=np.float64)
         u = np.ones(shape=self.ny, dtype=np.float64)
-        
-        RS = self.vars['S'].value * self.vars['R'].value
-        RnS = (1. - self.vars['S'].value) * self.vars['R'].value
-            
-        for j in mask:
-            for i, k in self.map['Y'][j]:
+
+        for j in Y_mask:
+            for i, k in self.map['Y'][j]['XS']:
+#                assert k in s_slce, "Accesing a unexpected index for edge"
                 t[j] *= 1. - self.vars['X'].value[i] * RS[k]
                 u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
 
-        p0 = 1. - u[mask]
-        p1 = t[mask]*u[mask]
-        p2 = u[mask] - p1
+        p0 = 1. - u[Y_mask]
+        p1 = t[Y_mask]*u[Y_mask]
+        p2 = u[Y_mask] - p1
 
         pp = np.stack([p0, p1, p2], axis=1)
 
         loglikelihood = self.prev_loglikelihood.copy()
-        loglikelihood[mask] = st.multinomial(1, pp).logpmf(self.YY[mask])
+        loglikelihood[Y_mask] = st.multinomial(1, pp).logpmf(self.YY[Y_mask])
 
-        logratio_var = var.lgpdf - var.prev_lgpdf
-        logratio_lik = loglikelihood - self.prev_loglikelihood
+        logratio_var = np.zeros(var.size) - np.inf
+        logratio_lik = np.zeros(self.ny) - np.inf
+        logratio_var[slce] = var.lgpdf[slce] - var.prev_lgpdf[slce]
+        logratio_lik[Y_mask] = loglikelihood[Y_mask] - self.prev_loglikelihood[Y_mask]
 
         logratio = logratio_var
         for i in slce:
@@ -73,7 +84,7 @@ class Chain(object):
         slce_mask = np.zeros(var.size, dtype=bool)
         slce_mask[slce] = 1
 
-        threshold = np.random.exponential(size=var.size)
+        threshold = - np.random.exponential(size=var.size)
 
         accept = (logratio >= 0) + (logratio > threshold)
         reject_mask = (~accept)*slce_mask
@@ -87,20 +98,20 @@ class Chain(object):
 
         Ys_affected = set()
         for i in slce:
-            Ys_affected.update(self.map[var.name][i])
+            Ys_affected.update(self.map[var.name][i]['Y'])
 
-        mask =  np.array(list(Ys_affected))
-        
+        Y_mask =  np.array(list(Ys_affected))
+
         try:
-            logratio = loglikelihood[mask].sum() - self.prev_loglikelihood[mask].sum()
+            logratio = loglikelihood[Y_mask].sum() - self.prev_loglikelihood[Y_mask].sum()
             logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
         except IndexError:
             logratio = - np.inf
 
-        accept = logratio >= 0 or logratio > -np.random.exponential()
+        accept = logratio >= 0 or logratio > - np.random.exponential()
 
         if accept:
-            self.prev_loglikelihood[mask] = loglikelihood[mask]
+            self.prev_loglikelihood[Y_mask] = loglikelihood[Y_mask]
 
         return accept
 

@@ -56,19 +56,29 @@ class Model(object):
         self.map = {}
         self.map['X'] = {}
         for i in Dx.values():
-            self.map['X'][i] = []
+            self.map['X'][i] = {} 
+            self.map['X'][i]['Y'] = []
+            self.map['X'][i]['R'] = []
+            self.map['X'][i]['S'] = []
         for (src, trg), k in Ds.items():
-            self.map['X'][Dx[src]].append(Dy[trg])
+            self.map['X'][Dx[src]]['Y'].append(Dy[trg])
+            self.map['X'][Dx[src]]['R'].append(k)
+            self.map['X'][Dx[src]]['S'].append(k)
 
         self.map['Y'] = {}
         for j in Dy.values():
-            self.map['Y'][j] = []
+            self.map['Y'][j] = {}
+            self.map['Y'][j]['XS'] = []
+            self.map['Y'][j]['S'] = []
         for (src, trg), k in Ds.items():
-            self.map['Y'][Dy[trg]].append((Dx[src], k))
+            self.map['Y'][Dy[trg]]['XS'].append((Dx[src], k))
+            self.map['Y'][Dy[trg]]['S'].append(k)
 
         self.map['S'] = {}
         for (src, trg), k in Ds.items():
-            self.map['S'][k] = [Dy[trg]]
+            self.map['S'][k] = {}
+            self.map['S'][k]['Y'] = [Dy[trg]]
+
         self.map['R'] = self.map['S']
         
         self.dictionaries = Dx, ADx, Ds, ADs, Dy
