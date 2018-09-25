@@ -14,6 +14,7 @@ class Chain(object):
         self.id = chain_id
         
         self.scale = model.scale[0]
+        self.acc_rate = 0
         
         self.ny = model.ny
         self.ns = model.ns
@@ -26,6 +27,11 @@ class Chain(object):
         
         self.prev_loglikelihood = np.zeros(shape=self.ny) - np.inf
 
+        self.t = np.ones(shape=self.ny, dtype=np.float64)
+        self.u = np.ones(shape=self.ny, dtype=np.float64)
+        self.RS = self.vars['S'].value * self.vars['R'].value
+        self.RnS = self.vars['R'].value - self.RS
+
 
     def accept(self, var):
         
@@ -34,37 +40,26 @@ class Chain(object):
         Ys_affected = set()
         Ys_affected_by = {}
         for i in slce:
-            Ys_affected.update(self.map[var.name][i]['Y'])
-            Ys_affected_by[i] = np.array(self.map[var.name][i]['Y'])
+            lst = self.map[var.name][i]['Y']
+            Ys_affected_by[i] = np.array(lst)
+            Ys_affected.update(lst)
 
         Y_mask =  np.array(list(Ys_affected))
 
-#        s_slce = []
-#        for j in Y_mask:
-#            s_slce += self.map['Y'][j]['S']
-#        s_slce = np.array(s_slce)
-#
-#        RS = np.empty(shape=self.ns, dtype=np.float64)
-#        RnS = np.empty(shape=self.ns, dtype=np.float64)
-#
-#        RS[s_slce] = self.vars['S'].value[s_slce] * self.vars['R'].value[s_slce]
-#        RnS[s_slce] = self.vars['R'].value[s_slce] - RS[s_slce] 
+        self.RS = self.vars['S'].value * self.vars['R'].value
+        self.RnS = self.vars['R'].value - self.RS
 
-        RS = self.vars['S'].value * self.vars['R'].value
-        RnS = self.vars['R'].value - RS 
-
-        t = np.ones(shape=self.ny, dtype=np.float64)
-        u = np.ones(shape=self.ny, dtype=np.float64)
+        self.t = np.ones(shape=self.ny, dtype=np.float64)
+        self.u = np.ones(shape=self.ny, dtype=np.float64)
 
         for j in Y_mask:
             for i, k in self.map['Y'][j]['XS']:
-#                assert k in s_slce, "Accesing a unexpected index for edge"
-                t[j] *= 1. - self.vars['X'].value[i] * RS[k]
-                u[j] *= 1. - self.vars['X'].value[i] * RnS[k] 
+                self.t[j] *= 1. - self.vars['X'].value[i] * self.RS[k]
+                self.u[j] *= 1. - self.vars['X'].value[i] * self.RnS[k] 
 
-        p0 = 1. - u[Y_mask]
-        p1 = t[Y_mask]*u[Y_mask]
-        p2 = u[Y_mask] - p1
+        p0 = 1. - self.u[Y_mask]
+        p1 = self.t[Y_mask]*self.u[Y_mask]
+        p2 = self.u[Y_mask] - p1
 
         pp = np.stack([p0, p1, p2], axis=1)
 
@@ -130,7 +125,7 @@ class Chain(object):
 
         tune_interval = updt_interval * 30
         steps_until_tune = tune_interval
-        acc_rate = 0
+        self.acc_rate = 0
         accepted = rejected = 0
         total_accepted = total_rejected = 0
         
@@ -140,15 +135,17 @@ class Chain(object):
                 if total_sampled is not None:
                     total_sampled[self.id] += updt_interval
                 else:
-                    print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
+                    print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, self.acc_rate), end="")
                     print("Progress {: 7.2%}".format(i/N), end="")
                 steps_until_updt = updt_interval
 
             steps_until_tune -= 1
             if not steps_until_tune:
-                acc_rate = accepted/(accepted + rejected)
+                self.acc_rate = accepted/(accepted + rejected)
 
-                #for var in self.vars.values():
+                self.tune()
+                for var in self.vars.values():
+                    var.scale = self.scale
                 #    var.tune()
 
                 steps_until_tune = tune_interval
@@ -174,33 +171,34 @@ class Chain(object):
         for variable in self.vars.values():
             self.chain[variable.name] = self.chain[variable.name][1:]
 
-        acc_rate = total_accepted/(total_accepted + total_rejected)
-        print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, acc_rate), end="")
+        self.acc_rate = total_accepted/(total_accepted + total_rejected)
+        print("\rChain {} - Acceptance rate {: 7.2%}, ".format(self.id, self.acc_rate), end="")
         print("Sampling completed")
         if total_sampled is not None:
             total_sampled[self.id] = N
         
         return self
 
-    def tune(self, acc_rate):
+    def tune(self):
         # Switch statement
-        if acc_rate < 0.001:
+        if self.acc_rate < 0.001:
             # reduce by 90 percent
             self.scale *= 0.1
-        elif acc_rate < 0.05:
+        elif self.acc_rate < 0.05:
             # reduce by 50 percent
             self.scale *= 0.5
-        elif acc_rate < 0.2:
+        elif self.acc_rate < 0.2:
             # reduce by ten percent
             self.scale *= 0.9
-        elif acc_rate > 0.95:
+        elif self.acc_rate > 0.95:
             # increase by factor of ten
             self.scale *= 10.0
-        elif acc_rate > 0.75:
+        elif self.acc_rate > 0.75:
             # increase by double
             self.scale *= 2.0
-        elif acc_rate > 0.5:
+        elif self.acc_rate > 0.5:
             # increase by ten percent
             self.scale *= 1.1
 
         self.scale = min(self.scale, 0.5)
+        self.scale = max(self.scale, 0.01)
