@@ -166,6 +166,8 @@ class Model(object):
         
         for i, trace in enumerate(self.trace):
             for varname in self.varnames:
+                # TODO: think of a way of getting rid of the burnt samples at
+                # this point. This is to save in RAM
                 trace[varname] = np.vstack([trace[varname], self.chains[i].chain[varname]])
 
         self.run_convergence_test()
