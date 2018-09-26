@@ -91,17 +91,17 @@ class Chain(object):
         slce = np.argwhere(slce_mask).T[0]
         var.slce = slce
 
+        if slce.shape[0] == 0:
+            return False
+
         Ys_affected = set()
         for i in slce:
             Ys_affected.update(self.map[var.name][i]['Y'])
 
         Y_mask =  np.array(list(Ys_affected))
 
-        try:
-            logratio = loglikelihood[Y_mask].sum() - self.prev_loglikelihood[Y_mask].sum()
-            logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
-        except IndexError:
-            logratio = - np.inf
+        logratio = loglikelihood[Y_mask].sum() - self.prev_loglikelihood[Y_mask].sum()
+        logratio += var.lgpdf[slce].sum() - var.prev_lgpdf[slce].sum()
 
         accept = logratio >= 0 or logratio > - np.random.exponential()
 
@@ -123,7 +123,7 @@ class Chain(object):
         updt_interval = max(1, N*0.0001)
         steps_until_updt = updt_interval
 
-        tune_interval = updt_interval * 30
+        tune_interval = 100 #updt_interval * 30
         steps_until_tune = tune_interval
         self.acc_rate = 0
         accepted = rejected = 0
@@ -143,10 +143,10 @@ class Chain(object):
             if not steps_until_tune:
                 self.acc_rate = accepted/(accepted + rejected)
 
-                self.tune()
+                #self.tune()
                 for var in self.vars.values():
-                    var.scale = self.scale
-                #    var.tune()
+                #    var.scale = self.scale
+                    var.tune()
 
                 steps_until_tune = tune_interval
                 accepted = rejected = 0
