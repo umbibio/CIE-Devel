@@ -16,21 +16,43 @@ class BaseModel(object):
         self.max_gr = 0
         
         self.vars = {}
+        self._trace_keys = None
 
-        chains = 2
-        for ch in range(chains):
-            self.chains.append(Chain(self, i))
-            self.trace.append({})
+
+    @property
+    def trace_df(self):
+        trace_length = len(next(iter(self.trace[0].values())))
+        if self.burn < 1:
+            burn = int(trace_length * self.burn)
+        else:
+            burn = self.burn
+        return [pd.DataFrame(tr).iloc[burn:] for tr in self.trace]
+
+
+    @property
+    def trace_keys(self):
+        if self._trace_keys is None:
+            self._trace_keys = []
             for vardict in self.vars.values():
                 for node in vardict.values():
                     try:
                         # if node is multinomial, value will be a numpy array
                         # have to set a list for each element in 'value'
-                        for i in range(node.value.size):
-                            self.trace[ch][f"{node.id}_{i}"] = []
-                    except AttributeError:
+                        for i in range(len(node.value)):
+                            self._trace_keys.append(f"{node.id}_{i}")
+                    except TypeError:
                         # value is no array, it won't have Attribute 'size'
-                        self.trace[ch][node.id] = []
+                        self._trace_keys.append(node.id)
+        return self._trace_keys
+
+
+    def init_chains(self):
+        chains = 2
+        for ch in range(chains):
+            self.chains.append(Chain(self, ch))
+            self.trace.append({})
+            for key in self.trace_keys:
+                self.trace[ch][key] = []
 
 
     def rscore(self, x, num_samples):
@@ -44,13 +66,13 @@ class BaseModel(object):
         """
         # Calculate between-chain variance
         B = num_samples * np.var(np.mean(x, axis=1), axis=0, ddof=1)
-        
+
         # Calculate within-chain variance
         W = np.mean(np.var(x, axis=1, ddof=1), axis=0)
 
         # Estimate of marginal posterior variance
         Vhat = W * (num_samples - 1) / num_samples + B / num_samples
-        
+
         return np.sqrt(Vhat / W)
 
 
@@ -81,14 +103,23 @@ class BaseModel(object):
             print('Need at least two chains for the convergence test')
             return
         
-        x = self.get_trace('X')
-        self.gelman_rubin['X'] = self.rscore(x, x.shape[1])
-        
-        r = self.get_trace('R')
-        self.gelman_rubin['R'] = self.rscore(r, r.shape[1])
-        
-        s = self.get_trace('S')
-        self.gelman_rubin['S'] = self.rscore(s, s.shape[1])
+        trace_df = self.trace_df
+
+        num_samples = len(trace_df[0])
+
+        # Calculate between-chain variance
+        B = num_samples * pd.DataFrame([tr.mean() for tr in trace_df]).var(ddof=1)
+
+        # Calculate within-chain variance
+        W = pd.DataFrame([tr.var(ddof=1) for tr in trace_df]).mean()
+
+        # Estimate of marginal posterior variance
+        Vhat = W * (num_samples - 1) / num_samples + B / num_samples
+
+        var_table = pd.DataFrame({'B':B, 'W':W, 'Vhat':Vhat})
+
+        gelman_rubin = var_table.apply(lambda r: np.sqrt(r.Vhat/r.W) if r.W > 0 else 1., axis=1)
+        self.gelman_rubin = gelman_rubin
 
 
     def converged(self):
@@ -96,16 +127,14 @@ class BaseModel(object):
         if len(self.gelman_rubin) == 0:
             return False
 
-        max_gr = 0
-        for gr in self.gelman_rubin.values():
-            max_gr = max(max_gr, gr.max())
-        self.max_gr = max_gr
+        self.max_gr = self.gelman_rubin.max()
         
-        if max_gr < 1.1:
+        if self.max_gr < 1.1:
             print("\nChains have converged")
             return True
         else:
-            print(f"\nFailed to converge. Gelman-Rubin statistics was {max_gr: 7.4} for some parameter")
+            print(f"\nFailed to converge. "
+                  f"Gelman-Rubin statistics was {self.max_gr: 7.4} for some parameter")
             return False
 
 
@@ -175,10 +204,8 @@ class BaseModel(object):
             for chain in self.chains:
                 chain.sample(N, thin=thin)
         
-        for i, trace in enumerate(self.trace):
-            for varname in self.vars.keys():
-                # TODO: think of a way of getting rid of the burnt samples at
-                # this point. This is to save in RAM
-                trace[varname] = np.vstack([trace[varname], self.chains[i].chain[varname]])
+        for chain_id, trace in enumerate(self.trace):
+            for key in self.trace_keys:
+                trace[key] += self.chains[chain_id].chain[key]
 
         self.run_convergence_test()

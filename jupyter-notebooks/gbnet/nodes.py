@@ -47,7 +47,7 @@ class ContinuousRandomVariable(RandomVariable):
 
     def proposal_norm(self):
         prev = self.value
-        scale = 0.02
+        scale = 0.2
         
         lft, rgt = self.l_clip, self.r_clip
         a, b = (lft - prev) / scale, (rgt - prev) / scale
@@ -152,7 +152,7 @@ class Beta(ContinuousRandomVariable):
         args, a, b = args[:-2], args[-2], args[-1]
         self.dist = st.beta
         self.params = [a, b]
+        ContinuousRandomVariable.__init__(self, *args, **kwargs)
         self.l_clip = 0.01
         self.r_clip = 0.99
-        ContinuousRandomVariable.__init__(self, *args, **kwargs)
 

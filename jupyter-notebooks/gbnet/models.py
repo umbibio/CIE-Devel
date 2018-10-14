@@ -49,6 +49,8 @@ class ORNORModel(BaseModel):
     def __init__(self, rels, DEG):
         BaseModel.__init__(self)
 
+        self.rels = rels
+
         # identify TF considered in current network
         X_list = rels['srcuid'].unique()
 
@@ -95,4 +97,50 @@ class ORNORModel(BaseModel):
         self.vars['X'] = Xnodes
         self.vars['T'] = Tnodes
         self.vars['S'] = Snodes
+        self.init_chains()
 
+
+    def result(self, Xgt=None):
+        result = pd.concat(self.trace_df)
+        result = {
+            'mean': result.mean(),
+            'std': result.std(),
+        }
+        result = pd.DataFrame(result)
+
+        rels = self.rels
+        src_uids = rels.srcuid.unique()
+
+        Xres = result.loc[[f'X__{src}_1' for src in src_uids]]
+        Xres = Xres.assign(srcuid=src_uids)
+        Xres['pred'] = Xres.apply(lambda r: 1 if r['mean']>0.5 else 0, axis =1)
+        Xres = Xres.assign(idx=[f'X__{src}' for src in src_uids])
+        Xres = Xres.set_index('idx')
+        if Xgt is not None:
+            Xres = Xres.assign(gt=[Xgt[src] for src in src_uids])
+
+        Tres = result.loc[[f'T__{src}' for src in src_uids]]
+        Tres = Tres.assign(srcuid=src_uids)
+
+        Sres0 = result.loc[[f'S__{edge}_0' for edge in rels.index]]['mean'].to_frame('-')
+        Sres0 = Sres0.assign(idx=[f'S__{edge}' for edge in rels.index])
+        Sres0 = Sres0.set_index('idx')
+        Sres2 = result.loc[[f'S__{edge}_2' for edge in rels.index]]['mean'].to_frame('+')
+        Sres2 = Sres2.assign(idx=[f'S__{edge}' for edge in rels.index])
+        Sres2 = Sres2.set_index('idx')
+
+        Sres = pd.concat([Sres0, Sres2], sort=False, axis=1)
+        Sres = Sres.assign(srcuid=list(rels['srcuid']))
+        Sres = Sres.assign(trguid=list(rels['trguid']))
+        Sres = Sres.assign(pred=Sres.apply(lambda r: 1 if r['+']>0.5 else (-1 if r['-']>0.5 else 0), axis=1))
+        Sres = Sres.assign(gt=list(rels['val']))
+
+        self.Xres = Xres
+        self.Tres = Tres
+        self.Sres = Sres
+
+        return {
+            'X': Xres[Xres.pred==1],
+            'T': Tres,
+            'S': Sres[Sres.srcuid.isin(Xres[Xres.pred==1].srcuid)],
+        }
