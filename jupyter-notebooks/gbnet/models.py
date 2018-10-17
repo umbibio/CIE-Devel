@@ -133,7 +133,10 @@ class ORNORModel(BaseModel):
         Sres = Sres.assign(srcuid=list(rels['srcuid']))
         Sres = Sres.assign(trguid=list(rels['trguid']))
         Sres = Sres.assign(pred=Sres.apply(lambda r: 1 if r['+']>0.5 else (-1 if r['-']>0.5 else 0), axis=1))
-        Sres = Sres.assign(gt=list(rels['val']))
+        try:
+            Sres = Sres.assign(gt=list(rels['val']))
+        except KeyError:
+            pass
 
         self.Xres = Xres
         self.Tres = Tres
