@@ -1,4 +1,8 @@
+import os
+import psutil
+from datetime import timedelta
 import time
+
 import numpy as np
 import pandas as pd
 
@@ -164,10 +168,26 @@ class Reporter(object):
         self.ctime = time.time()
         self.stime = self.ctime
         self.ltime = self.ctime
-        pass
-    def report(self, string):
+        self.process = psutil.Process(os.getpid())
+
+    def report(self, string='', schar='', lchar='\n', showram=True):
         self.ctime = time.time()
-        print("\nlast: %.2f, total: %.2f -- %s" % (self.ctime - self.ltime, self.ctime - self.stime, string))
+        total_dt = timedelta(seconds=round(self.ctime - self.stime))
+        last_dt = timedelta(seconds=round(self.ctime - self.ltime))
+        out = f'{schar}'
+        if string:
+            out += f"Last: {last_dt}, elapsed: {total_dt}"
+        else:
+            out += f"Elapsed: {total_dt}"
+            
+        if showram:
+            usage = self.process.memory_info().rss-self.process.memory_info().shared
+            usage = usage/1073741824
+            out += f", mem usage: {usage:0.02f}GB"
+        
+        if string:
+            out += f' -- {string}'
+        print(out, end=lchar)
         self.ltime = self.ctime
 
 
