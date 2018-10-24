@@ -56,14 +56,10 @@ class ORNOR_YLikelihood(Multinomial):
 
 class ORNORModel(BaseModel):
 
-    __slots__ = ['rels']
+    __slots__ = []
 
-
-    def __init__(self, rels, DEG, nchains=2):
-        BaseModel.__init__(self)
-
-        self.rels = rels
-
+    def build_variables(self, rels, DEG):
+        
         # identify TF considered in current network
         X_list = rels['srcuid'].unique()
 
@@ -107,10 +103,13 @@ class ORNORModel(BaseModel):
             
             Ynodes[trg].in_edges.append([Xnodes[src], Tnodes[src], Snodes[edg]])
 
-        self.vars['X'] = Xnodes
-        self.vars['T'] = Tnodes
-        self.vars['S'] = Snodes
-        self.init_chains(nchains)
+        variables = {}
+        variables['X'] = Xnodes
+        variables['T'] = Tnodes
+        variables['S'] = Snodes
+
+        return variables
+
 
 
     def result(self, Xgt=None):

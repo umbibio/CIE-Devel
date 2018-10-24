@@ -2,43 +2,67 @@ import signal, time
 import numpy as np
 import pandas as pd
 from multiprocessing import Pool, Manager
-from gbnet.chain import Chain
 from gbnet.aux import Reporter
 
 class BaseModel(object):
 
     __slots__ = [
         'trace',
-        'chains',
         'burn',
         'gelman_rubin',
         'max_gr',
         'vars',
         '_trace_keys',
         'rp',
+        'rels',
+        'DEG',
+        'nchains',
+        'manager',
+        'stats',
     ]
 
-    def __init__(self):
-        
-        self.chains = []
+    def __init__(self, rels, DEG, nchains=2):
+
+        self.rels = rels
+        self.DEG = DEG
+        self.nchains = nchains
         
         self.gelman_rubin = {}
         
-        self.vars = {}
+        self.manager = Manager()
+        self.vars = self.manager.list()
+        self.stats = self.manager.list()
+
         self._trace_keys = None
         self.rp = Reporter()
 
 
+        for ch in range(nchains):
+            variables = self.build_variables(rels, DEG)
+            self.vars.append(variables)
+        
+        stats = {}
+        for key in self.trace_keys:
+            stats[key] = { 'sum1': 0, 'sum2': 0, 'N': 0 }
+
+        for ch in range(nchains):
+            statistics = stats.copy()
+            self.stats.append(statistics)
+
+    def build_variables(self, rels, DEG):
+        return {}
+
     def burn_stats(self):
-        for chain in self.chains:
-            chain.reset_stats()
+        for ch in range(self.nchains):
+            for key in self.trace_keys:
+                self.stats[ch][key] = { 'sum1': 0, 'sum2': 0, 'N': 0 }
 
 
     def get_trace_stats(self, combine=False):
-        nchains = len(self.chains)
+
         dfs = []
-        for i in range(nchains):
-            df = pd.DataFrame(self.chains[i].stats).transpose()
+        for ch in range(self.nchains):
+            df = pd.DataFrame(self.stats[ch]).transpose()
             df.index.name = 'name'
             dfs.append(df)
 
@@ -71,7 +95,7 @@ class BaseModel(object):
     def trace_keys(self):
         if self._trace_keys is None:
             self._trace_keys = []
-            for vardict in self.vars.values():
+            for vardict in self.vars[0].values():
                 for node in vardict.values():
                     try:
                         # if node is multinomial, value will be a numpy array
@@ -84,16 +108,9 @@ class BaseModel(object):
         return self._trace_keys
 
 
-    def init_chains(self, nchains=2):
-        for ch in range(nchains):
-            self.chains.append(Chain(self, ch))
-
-
     def get_gelman_rubin(self):
-
-        nchains = len(self.chains)
         
-        if nchains < 2:
+        if self.nchains < 2:
             print('Need at least two chains for the convergence test')
             return
         
@@ -143,7 +160,7 @@ class BaseModel(object):
             
         if njobs > 1:
             
-            chains = len(self.chains)
+            chains = self.nchains
             
             print(f"\nSampling {chains} chains in {njobs} jobs")
         
@@ -155,9 +172,10 @@ class BaseModel(object):
             signal.signal(signal.SIGINT, original_sigint_handler)
             
             try:
-                manager = Manager()
-                sampled = manager.list([0]*chains)
-                mres = [pool.apply_async(chain.sample, (N, sampled, thin)) for chain in self.chains]
+                #manager = Manager()
+                sampled = self.manager.list([0]*chains)
+                for ch in range(self.nchains):
+                    pool.apply_async(sample_chain, (N, self.vars, self.stats, ch, sampled, thin))
                 pool.close()
                 
                 timer = 90 * 24 * 60 * 60 * 4 # 90 days timeout
@@ -177,7 +195,7 @@ class BaseModel(object):
                 if timer <= 0:
                     raise TimeoutError
 
-                self.chains = [res.get(timeout=3600) for res in mres]
+                #self.chains = [res.get(timeout=3600) for res in mres]
             except KeyboardInterrupt:
                 pool.terminate()
                 print("\n\nCaught KeyboardInterrupt, workers have been terminated\n")
@@ -190,5 +208,59 @@ class BaseModel(object):
             
             pool.join()
         else:
-            for chain in self.chains:
-                chain.sample(N, thin=thin)
+            for ch in range(self.nchains):
+                sample_chain(N, self.vars, self.stats, ch, thin=thin)
+
+
+def sample_chain(N, modelvars, modelstats, chain_id, run_sampled_count=None, thin=1):
+
+        mvars = modelvars[chain_id]
+        mstats = modelstats[chain_id]
+
+        steps_until_thin = thin
+
+        # this will run in multiprocessing job, so we need to reset seed
+        np.random.seed()
+                
+        updt_interval = max(1, N*0.0001)
+        steps_until_updt = updt_interval
+
+        for i in range(N):
+            steps_until_updt -= 1
+            if not steps_until_updt:
+                if run_sampled_count is not None:
+                    run_sampled_count[chain_id] += updt_interval
+                else:
+                    print("\rChain {} - Progress {: 7.2%}".format(chain_id, i/N), end="")
+                steps_until_updt = updt_interval
+
+            for vardict in mvars.values():
+                for node in vardict.values():
+                    node.sample()
+
+            steps_until_thin -= 1
+            if not steps_until_thin:
+                steps_until_thin = thin
+
+                for vardict in mvars.values():
+                    for node in vardict.values():
+                        try:
+                            # if node is multinomial, value will be a numpy array
+                            # have to set a list for each element in 'value'
+                            for i, val in enumerate(node.value):
+                                mstats[f"{node.id}_{i}"]['sum1'] += val
+                                mstats[f"{node.id}_{i}"]['sum2'] += val**2
+                                mstats[f"{node.id}_{i}"]['N'] += 1
+                        except TypeError:
+                            # value is no array, it won't be iterable
+                            mstats[node.id]['sum1'] += node.value
+                            mstats[node.id]['sum2'] += node.value**2
+                            mstats[node.id]['N'] += 1
+
+        modelvars[chain_id] = mvars
+        modelstats[chain_id] = mstats
+
+        print(f"\rChain {chain_id} - Sampling completed")
+        if run_sampled_count is not None:
+            run_sampled_count[chain_id] = N
+
