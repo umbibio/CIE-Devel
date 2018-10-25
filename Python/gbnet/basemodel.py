@@ -214,53 +214,53 @@ class BaseModel(object):
 
 def sample_chain(N, modelvars, modelstats, chain_id, run_sampled_count=None, thin=1):
 
-        mvars = modelvars[chain_id]
-        mstats = modelstats[chain_id]
+    mvars = modelvars[chain_id]
+    mstats = modelstats[chain_id]
 
-        steps_until_thin = thin
+    steps_until_thin = thin
 
-        # this will run in multiprocessing job, so we need to reset seed
-        np.random.seed()
-                
-        updt_interval = max(1, N*0.0001)
-        steps_until_updt = updt_interval
+    # this will run in multiprocessing job, so we need to reset seed
+    np.random.seed()
+            
+    updt_interval = max(1, N*0.0001)
+    steps_until_updt = updt_interval
 
-        for i in range(N):
-            steps_until_updt -= 1
-            if not steps_until_updt:
-                if run_sampled_count is not None:
-                    run_sampled_count[chain_id] += updt_interval
-                else:
-                    print("\rChain {} - Progress {: 7.2%}".format(chain_id, i/N), end="")
-                steps_until_updt = updt_interval
+    for i in range(N):
+        steps_until_updt -= 1
+        if not steps_until_updt:
+            if run_sampled_count is not None:
+                run_sampled_count[chain_id] += updt_interval
+            else:
+                print("\rChain {} - Progress {: 7.2%}".format(chain_id, i/N), end="")
+            steps_until_updt = updt_interval
+
+        for vardict in mvars.values():
+            for node in vardict.values():
+                node.sample()
+
+        steps_until_thin -= 1
+        if not steps_until_thin:
+            steps_until_thin = thin
 
             for vardict in mvars.values():
                 for node in vardict.values():
-                    node.sample()
+                    try:
+                        # if node is multinomial, value will be a numpy array
+                        # have to set a list for each element in 'value'
+                        for i, val in enumerate(node.value):
+                            mstats[f"{node.id}_{i}"]['sum1'] += val
+                            mstats[f"{node.id}_{i}"]['sum2'] += val**2
+                            mstats[f"{node.id}_{i}"]['N'] += 1
+                    except TypeError:
+                        # value is no array, it won't be iterable
+                        mstats[node.id]['sum1'] += node.value
+                        mstats[node.id]['sum2'] += node.value**2
+                        mstats[node.id]['N'] += 1
 
-            steps_until_thin -= 1
-            if not steps_until_thin:
-                steps_until_thin = thin
+    modelvars[chain_id] = mvars
+    modelstats[chain_id] = mstats
 
-                for vardict in mvars.values():
-                    for node in vardict.values():
-                        try:
-                            # if node is multinomial, value will be a numpy array
-                            # have to set a list for each element in 'value'
-                            for i, val in enumerate(node.value):
-                                mstats[f"{node.id}_{i}"]['sum1'] += val
-                                mstats[f"{node.id}_{i}"]['sum2'] += val**2
-                                mstats[f"{node.id}_{i}"]['N'] += 1
-                        except TypeError:
-                            # value is no array, it won't be iterable
-                            mstats[node.id]['sum1'] += node.value
-                            mstats[node.id]['sum2'] += node.value**2
-                            mstats[node.id]['N'] += 1
-
-        modelvars[chain_id] = mvars
-        modelstats[chain_id] = mstats
-
-        print(f"\rChain {chain_id} - Sampling completed")
-        if run_sampled_count is not None:
-            run_sampled_count[chain_id] = N
+    print(f"\rChain {chain_id} - Sampling completed")
+    if run_sampled_count is not None:
+        run_sampled_count[chain_id] = N
 
