@@ -38,24 +38,27 @@ class BaseModel(object):
 
 
         for ch in range(nchains):
-            variables = self.build_variables(rels, DEG)
-            self.vars.append(variables)
+            self.vars.append(None)
+            self.vars[ch] = self.build_variables(rels, DEG)
         
         stats = {}
         for key in self.trace_keys:
             stats[key] = { 'sum1': 0, 'sum2': 0, 'N': 0 }
 
         for ch in range(nchains):
-            statistics = stats.copy()
-            self.stats.append(statistics)
+            self.stats.append(None)
+            self.stats[ch] = stats.copy()
 
     def build_variables(self, rels, DEG):
         return {}
 
-    def burn_stats(self):
+    def burn_stats(self, keep_fraction=1.0):
         for ch in range(self.nchains):
+            stats = self.stats[ch]
             for key in self.trace_keys:
-                self.stats[ch][key] = { 'sum1': 0, 'sum2': 0, 'N': 0 }
+                for stat_key, stat_val in stats[key].items():
+                    stats[key][stat_key] = stat_val * keep_fraction
+            self.stats[ch] = stats
 
 
     def get_trace_stats(self, combine=False):
