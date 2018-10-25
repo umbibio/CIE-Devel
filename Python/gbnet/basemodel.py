@@ -52,7 +52,8 @@ class BaseModel(object):
     def build_variables(self, rels, DEG):
         return {}
 
-    def burn_stats(self, keep_fraction=1.0):
+    def burn_stats(self, burn_fraction=1.0):
+        keep_fraction = 1. - burn_fraction
         for ch in range(self.nchains):
             stats = self.stats[ch]
             for key in self.trace_keys:
