@@ -51,7 +51,7 @@ class ORNOR_YLikelihood(Multinomial):
 
 
     def sample(self):
-        self.value = self.dist.rvs(*self.params)
+        self.value = self.dist.rvs(*self.params).astype(np.int8)
 
 
 class ORNORModel(BaseModel):

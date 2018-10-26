@@ -110,7 +110,13 @@ class Multinomial(DiscreteRandomVariable):
         self.params = [1, p]
         self.prior_prob = p
         self.prior_logprob = np.log(p)
-        self.possible_values = np.eye(len(p), dtype=np.int)
+        self.possible_values = np.eye(len(p), dtype=np.int8)
+        
+        try:
+            kwargs['value'] = np.array(kwargs['value']).astype(np.int8)
+        except KeyError:
+            pass
+        
         DiscreteRandomVariable.__init__(self, *args, **kwargs)
 
 
@@ -140,10 +146,14 @@ class Multinomial(DiscreteRandomVariable):
 
         return p
 
+    
+    def rvs(self):
+        return self.dist.rvs(*self.params).astype(np.int8) # pylint: disable=E1101
+    
 
     def sample(self):
         p = self.get_outcome_probs()
-        self.value = self.dist.rvs(1, p)
+        self.value = self.dist.rvs(1, p).astype(np.int8)
         self.total_sampled += 1
 
 
