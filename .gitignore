@@ -3,3 +3,9 @@ __pycache__
 .ipynb_checkpoints
 model*.p
 *.ipynb
+*.out
+*.so
+*.o
+Python/*/*.c
+Python/*/*.cpp
+Python/*/*.html
