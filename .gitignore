@@ -10,3 +10,4 @@ Python/*/*.c
 Python/*/*.cpp
 Python/*/*.html
 *.prof
+*.csv
