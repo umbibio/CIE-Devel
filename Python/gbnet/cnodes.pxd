@@ -39,6 +39,8 @@ cdef class Multinomial(RandomVariableNode):
 
 cdef class ORNOR_YLikelihood(Multinomial):
 
+    cdef Beta Znode
+    
     cdef double get_model_likelihood(self)
     cpdef double get_loglikelihood(self)
 
