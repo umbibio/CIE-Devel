@@ -1,4 +1,4 @@
-#cython: language_level=3, boundscheck=False, profile=True
+#cython: language_level=3, boundscheck=False
 from cython_gsl cimport gsl_rng
 cimport numpy as np
 

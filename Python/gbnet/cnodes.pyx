@@ -1,4 +1,4 @@
-#cython: language_level=3, boundscheck=False, profile=True
+#cython: language_level=3, boundscheck=False
 import cython
 from cython import sizeof
 
