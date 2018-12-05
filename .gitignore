@@ -6,8 +6,11 @@ model*.p
 *.out
 *.so
 *.o
-Python/*/*.c
-Python/*/*.cpp
-Python/*/*.html
+Python/*/*/*.c
+Python/*/*/*.cpp
+Python/*/*/*.html
 *.prof
 *.csv
+build
+dist
+*.egg-info
